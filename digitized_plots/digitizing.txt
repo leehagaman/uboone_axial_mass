@@ -1,0 +1,6 @@
+Used https://apps.automeris.io/wpd/ to digitize plots.
+
+MINERvA plot comes from https://www.nature.com/articles/s41586-022-05478-3
+
+LQCD plot comes from https://www.sciencedirect.com/science/article/pii/S0370269321007619?via%3Dihub
+
