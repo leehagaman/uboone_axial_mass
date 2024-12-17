@@ -2,6 +2,7 @@
 *.png
 *.jpg
 *.svg
+*.pdf
 !digitized_plots/*
 *.pkl
 *.root
