@@ -6,3 +6,4 @@
 !digitized_plots/*
 *.pkl
 *.root
+*.csv
