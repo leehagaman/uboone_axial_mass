@@ -443,16 +443,17 @@ def get_prediction_cv_and_variations_dataframes():
     all_vars_df["true_muon_momentum"] = np.sqrt(all_vars_df["true_muon_KE"]**2 + 2*all_vars_df["true_muon_KE"]*105.66)
 
 
-    return all_df, all_vars_df, num_unisim_variations_dic, nu_overlay_run1_pot, nu_overlay_run2_pot, nu_overlay_run3_pot, dirt_run1_pot, dirt_run2_pot, dirt_run3_pot
+    pots = [nu_overlay_run1_pot, nu_overlay_run2_pot, nu_overlay_run3_pot, dirt_run1_pot, dirt_run2_pot, dirt_run3_pot, 
+            nu_overlay_run1_vars_pot, nu_overlay_run2_vars_pot, nu_overlay_run3_vars_pot, dirt_run1_vars_pot, dirt_run2_vars_pot, dirt_run3_vars_pot]
+
+
+    return all_df, all_vars_df, num_unisim_variations_dic, pots
 
 
 ##### Function to get the covariance matrix and prediction for a certain type of data or fake data extraction #####
 
 
 def get_MA_trio_cov_mat_pred(
-        
-        all_df, all_vars_df, num_unisim_variations_dic, 
-        nu_overlay_run1_pot, nu_overlay_run2_pot, nu_overlay_run3_pot, dirt_run1_pot, dirt_run2_pot, dirt_run3_pot,
         
         use_real_data = False,
         use_nuwro_fake_data = False,
@@ -467,9 +468,28 @@ def get_MA_trio_cov_mat_pred(
 
         collapse_2d = False,
         collapse_1d = False,
+
+        no_cache = False,
         ):
     
     assert not use_real_data, "Not allowed to unblind yet!"
+
+    cache_key = f"cache_{use_real_data}_{use_nuwro_fake_data}_{use_genie_v2_fake_data}_{reweight_nuwro_fake_data}_{reweight_nuwro_M_A}_{skip_AxFFCCQEshape_UBGenie}_{shape_type}_{collapse_2d}_{collapse_1d}.pkl"
+    
+    if not no_cache:
+        try:
+            print(f"Attempting to load from cache file: {cache_key}")
+            with open("trio_caches/" + cache_key, 'rb') as f:
+                total_cov_MA, tot_pred_MA, data = pickle.load(f)
+                print("Successfully loaded from cache")
+                return total_cov_MA, tot_pred_MA, data
+        except (FileNotFoundError, EOFError):
+            print("Cache not found or invalid, computing from scratch...")
+
+
+    all_df, all_vars_df, num_unisim_variations_dic, pots = get_prediction_cv_and_variations_dataframes()
+
+    nu_overlay_run1_pot, nu_overlay_run2_pot, nu_overlay_run3_pot, dirt_run1_pot, dirt_run2_pot, dirt_run3_pot, nu_overlay_run1_vars_pot, nu_overlay_run2_vars_pot, nu_overlay_run3_vars_pot, dirt_run1_vars_pot, dirt_run2_vars_pot, dirt_run3_vars_pot = pots
 
     print("loading 3D XS extraction files")
 
@@ -579,24 +599,24 @@ def get_MA_trio_cov_mat_pred(
         if not (0 < w_cv < 30):
             w_cv = 1
         if files[i] == "nu_overlay_run1":
-            net_weight_vals.append(w_cv * weight_spline_vals[i] * data_pots[0] / nu_overlay_run1_pot)
+            net_weight_vals.append(w_cv * weight_spline_vals[i] * data_pots[0] / nu_overlay_run1_vars_pot)
         elif files[i] == "nu_overlay_run2":
-            net_weight_vals.append(w_cv * weight_spline_vals[i] * data_pots[1] / nu_overlay_run2_pot)
+            net_weight_vals.append(w_cv * weight_spline_vals[i] * data_pots[1] / nu_overlay_run2_vars_pot)
         elif files[i] == "nu_overlay_run3":
-            net_weight_vals.append(w_cv * weight_spline_vals[i] * data_pots[2] / nu_overlay_run3_pot)
+            net_weight_vals.append(w_cv * weight_spline_vals[i] * data_pots[2] / nu_overlay_run3_vars_pot)
         elif files[i] == "dirt_run1":
             if include_dirt:
-                net_weight_vals.append(w_cv * weight_spline_vals[i] * data_pots[0] / dirt_run1_pot)
+                net_weight_vals.append(w_cv * weight_spline_vals[i] * data_pots[0] / dirt_run1_vars_pot)
             else:
                 net_weight_vals.append(0)
         elif files[i] == "dirt_run2":
             if include_dirt:
-                net_weight_vals.append(w_cv * weight_spline_vals[i] * data_pots[1] / dirt_run2_pot)
+                net_weight_vals.append(w_cv * weight_spline_vals[i] * data_pots[1] / dirt_run2_vars_pot)
             else:
                 net_weight_vals.append(0)
         elif files[i] == "dirt_run3":
             if include_dirt:
-                net_weight_vals.append(w_cv * weight_spline_vals[i] * data_pots[2] / dirt_run3_pot)
+                net_weight_vals.append(w_cv * weight_spline_vals[i] * data_pots[2] / dirt_run3_vars_pot)
             else:
                 net_weight_vals.append(0)
         
@@ -1157,6 +1177,10 @@ def get_MA_trio_cov_mat_pred(
 
         total_cov_MA = M_s + xs_MA_cov
 
+    print(f"Saving results to cache file: {cache_key}")
+    with open("trio_caches/" + cache_key, 'wb') as f:
+        pickle.dump((total_cov_MA, tot_pred_MA, data), f)
+        
     return total_cov_MA, tot_pred_MA, data
 
 
