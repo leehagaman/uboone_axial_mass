@@ -1184,14 +1184,25 @@ def get_MA_trio_cov_mat_pred(
     return total_cov_MA, tot_pred_MA, data
 
 
-def extract_trio(cov_MA, pred_MA, data):
+def extract_trio(cov_MA, pred_MA, data, inv_cov_constraining=None):
+
+    # data can be a array of data points, or an array of arrays for multiple data points
 
     trio_prior = pred_MA[-3:] # M_A, NormCCMEC, Lambda
 
     cov_cross = cov_MA[-3:, :-3]
-    cov_constraining = cov_MA[:-3, :-3]
     cov_prior = cov_MA[-3:, -3:]
-    inv_cov_constraining = np.linalg.inv(cov_constraining)
+
+    if inv_cov_constraining is None:
+        cov_constraining = cov_MA[:-3, :-3]
+        inv_cov_constraining = np.linalg.inv(cov_constraining)
+
+    # check if the first element of data is an array, if so evaluate for each data array, but with saved covariance matrix input for speed
+    if isinstance(data[0], np.ndarray):
+        ret = []
+        for data_i in data:
+            ret.append(extract_trio(cov_MA, pred_MA, data_i, inv_cov_constraining=inv_cov_constraining))
+        return ret
 
     constrained_trio = pred_MA[-3:] + np.linalg.multi_dot(
         [cov_cross, inv_cov_constraining, np.array(data) - np.array(pred_MA[:-3])]
