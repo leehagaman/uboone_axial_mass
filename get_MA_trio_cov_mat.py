@@ -461,8 +461,6 @@ def get_MA_trio_cov_mat_pred(
         #use_nuwro_fake_data = False,
         #use_genie_v2_fake_data = False,
 
-        reweight_nuwro_M_A = np.nan,
-
         skip_AxFFCCQEshape_UBGenie = False,
 
         shape_type = "rate+shape", # other options ar "+100" and "matrix_breakdown"
@@ -475,8 +473,6 @@ def get_MA_trio_cov_mat_pred(
     assert not data_type == "real", "Not allowed to unblind yet!"
 
     cache_key = f"cache_{data_type}"
-    if reweight_nuwro_M_A:
-        cache_key += f"_reweight_nuwro_M_A"
     if skip_AxFFCCQEshape_UBGenie:
         cache_key += f"_skip_AxFFCCQEshape_UBGenie"
     if shape_type != "rate+shape":
@@ -706,53 +702,6 @@ def get_MA_trio_cov_mat_pred(
             tot_pred += list(f_merged[f"histo_{i+1}"].values(flow=True)[1:] + f_merged[f"histo_{i+1 + 72}"].values(flow=True)[1:] + f_merged[f"histo_{i+1 + 2 * 72}"].values(flow=True)[1:])
             #tot_pred_from_hmc += list(f_merged[f"hmc_obsch_{i+1}"].values(flow=True)[1:])
             data += list(f_merged[f"hdata_obsch_{i+1}"].values(flow=True)[1:])
-
-    if data_type == "NuWro" and not np.isnan(reweight_nuwro_M_A):
-
-        def get_nuwro_weight(true_Enu, true_Q2, true_MA, reweighting_ratios):
-            """
-            Get the reweighting factor for a given true neutrino energy, Q2, and MA value
-            
-            Parameters:
-            -----------
-            true_Enu : float
-                True neutrino energy in GeV
-            true_Q2 : float
-                True Q2 in GeV^2
-            true_MA : float
-                True MA value in GeV (must be one of: 0.7, 0.8, 0.9, 1.0, 1.03, 1.1, 1.2, 1.3, 1.4, 1.5)
-            reweighting_ratios : dict
-                Dictionary containing the reweighting ratios and bins
-            """
-            # Check if MA value exists in the ratios
-            if true_MA not in reweighting_ratios:
-                raise ValueError(f"MA value {true_MA} not found in reweighting ratios. Available values: {sorted(reweighting_ratios.keys())}")
-            
-            # Get the bins for Enu and Q2
-            q2_bins = reweighting_ratios[true_MA]['q2_bins']
-            Enu_bins = reweighting_ratios[true_MA]['Enu_bins']
-            
-            # Get bin indices
-            q2_idx = np.clip(np.digitize(true_Q2, q2_bins) - 1, 0, len(q2_bins)-2)
-            Enu_idx = np.clip(np.digitize(true_Enu, Enu_bins) - 1, 0, len(Enu_bins)-2)
-            
-            # Get the weight directly from the ratios
-            weight = reweighting_ratios[true_MA]['ratios'][q2_idx, Enu_idx]
-            
-            return weight
-
-        nuwro_fake_data_true_Enus = []
-        nuwro_fake_data_true_Q2s = []
-
-        with open('nuwro_reweighting_ratios.pkl', 'rb') as f:
-            reweighting_ratios = pickle.load(f)
-
-        nuwro_fake_data_weights = []
-        for i in range(len(nuwro_fake_data_true_Enus)):
-            nuwro_fake_data_weights.append(get_nuwro_weight(nuwro_fake_data_true_Enus[i], nuwro_fake_data_true_Q2s[i], reweight_nuwro_M_A, reweighting_ratios))
-
-        assert False, "Not implemented yet!"
-
 
     print("calculating selected XS variation histograms")
 
