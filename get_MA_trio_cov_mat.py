@@ -455,34 +455,43 @@ def get_prediction_cv_and_variations_dataframes():
 
 def get_MA_trio_cov_mat_pred(
         
-        use_real_data = False,
-        use_nuwro_fake_data = False,
-        use_genie_v2_fake_data = False,
+        data_type = "NuWro", # other options are "real" and "GENIE_v2"
+        
+        #use_real_data = False,
+        #use_nuwro_fake_data = False,
+        #use_genie_v2_fake_data = False,
 
-        reweight_nuwro_fake_data = False,
         reweight_nuwro_M_A = np.nan,
 
         skip_AxFFCCQEshape_UBGenie = False,
 
         shape_type = "rate+shape", # other options ar "+100" and "matrix_breakdown"
 
-        collapse_2d = False,
-        collapse_1d = False,
+        collapse_type = "4D", # other options are "2D" and "1D"
 
         no_cache = False,
         ):
     
-    assert not use_real_data, "Not allowed to unblind yet!"
+    assert not data_type == "real", "Not allowed to unblind yet!"
 
-    cache_key = f"cache_{use_real_data}_{use_nuwro_fake_data}_{use_genie_v2_fake_data}_{reweight_nuwro_fake_data}_{reweight_nuwro_M_A}_{skip_AxFFCCQEshape_UBGenie}_{shape_type}_{collapse_2d}_{collapse_1d}.pkl"
-    
+    cache_key = f"cache_{data_type}"
+    if reweight_nuwro_M_A:
+        cache_key += f"_reweight_nuwro_M_A"
+    if skip_AxFFCCQEshape_UBGenie:
+        cache_key += f"_skip_AxFFCCQEshape_UBGenie"
+    if shape_type != "rate+shape":
+        cache_key += f"_{shape_type}"
+    if collapse_type != "4D":
+        cache_key += f"_{collapse_type}"
+    cache_key += ".pkl"
+
     if not no_cache:
         try:
             print(f"Attempting to load from cache file: {cache_key}")
             with open("trio_caches/" + cache_key, 'rb') as f:
-                total_cov_MA, tot_pred_MA, data = pickle.load(f)
+                total_cov_MA, tot_pred_MA, data, multisim_xs_MA_cov, universe_reco_MAs = pickle.load(f)
                 print("Successfully loaded from cache")
-                return total_cov_MA, tot_pred_MA, data
+                return total_cov_MA, tot_pred_MA, data, multisim_xs_MA_cov, universe_reco_MAs
         except (FileNotFoundError, EOFError):
             print("Cache not found or invalid, computing from scratch...")
 
@@ -493,33 +502,33 @@ def get_MA_trio_cov_mat_pred(
 
     print("loading 3D XS extraction files")
 
-    if use_real_data:
+    if data_type == "real":
         # commenting to make sure we don't load real data yet
         #f_merged = uproot.open("numuCC_3d_data/real_data/merge_xs_data.root")
         #f_wiener = uproot.open("numuCC_3d_data/real_data/wiener_data.root")
         pass
-    elif use_nuwro_fake_data:
+    elif data_type == "NuWro":
         f_merged = uproot.open("numuCC_3d_data/nuwro_fake_data/merge_xs.root")
         f_wiener = uproot.open("numuCC_3d_data/nuwro_fake_data/wiener_all.root")
-    elif use_genie_v2_fake_data:
+    elif data_type == "GENIE_v2":
         f_merged = uproot.open("numuCC_3d_data/genie_v2_fake_data/merge_xs.root")
         f_wiener = uproot.open("numuCC_3d_data/genie_v2_fake_data/wiener.root")
 
     print("setting event weights")
 
-    if use_real_data:
+    if data_type == "real":
         data_pots = [
             1.42319e+20,
             2.5413e+20,
             2.40466e+20
         ]
-    elif use_nuwro_fake_data:
+    elif data_type == "NuWro":
         data_pots = [
             0,
             2.98217e+20,
             3.12922e+20
         ]
-    elif use_genie_v2_fake_data:
+    elif data_type == "GENIE_v2":
         data_pots = [
             7.2432440e20, 
             0., 
@@ -532,7 +541,7 @@ def get_MA_trio_cov_mat_pred(
         7.4127e+20,
     ]
 
-    if use_real_data:
+    if data_type == "real":
         include_ext = True
         include_dirt = True
     else:
@@ -681,7 +690,7 @@ def get_MA_trio_cov_mat_pred(
     print("getting data and prediction from 3D XS extraction files")
     tot_pred = []
     data = []
-    if use_genie_v2_fake_data: # seems like the genie v2 root files don't contain EXT blocks, should be fine since fake data never includes EXT
+    if data_type == "GENIE_v2": # seems like the genie v2 root files don't contain EXT blocks, should be fine since fake data never includes EXT
         for i in range(72):
             #mc_sig_pred += list(f_merged[f"histo_{i+1}"].values(flow=True)[1:])
             #mc_bkg_pred += list(f_merged[f"histo_{i+1 + 72}"].values(flow=True)[1:])
@@ -698,7 +707,7 @@ def get_MA_trio_cov_mat_pred(
             #tot_pred_from_hmc += list(f_merged[f"hmc_obsch_{i+1}"].values(flow=True)[1:])
             data += list(f_merged[f"hdata_obsch_{i+1}"].values(flow=True)[1:])
 
-    if reweight_nuwro_fake_data:
+    if data_type == "NuWro" and not np.isnan(reweight_nuwro_M_A):
 
         def get_nuwro_weight(true_Enu, true_Q2, true_MA, reweighting_ratios):
             """
@@ -839,17 +848,9 @@ def get_MA_trio_cov_mat_pred(
                         curr_unisim_slice = np.histogram(theta_df["reco_muon_momentum"].to_numpy(), weights=theta_df["net_weight"].to_numpy()*rel_weight_diffs, bins=muon_momentum_bins)[0]
                         unisim_reco_hist_dic[unisim_type][j] += list(curr_unisim_slice)
 
-    if use_real_data:
-        pickle.dump((xs_cv_reco_hist, universe_reco_hists, unisim_reco_hist_dic), open("universes_v6_real.pkl", "wb"))
-    elif use_nuwro_fake_data:
-        pickle.dump((xs_cv_reco_hist, universe_reco_hists, unisim_reco_hist_dic), open("universes_v6_nuwro.pkl", "wb"))
-    elif use_genie_v2_fake_data:
-        pickle.dump((xs_cv_reco_hist, universe_reco_hists, unisim_reco_hist_dic), open("universes_v6_genie_v2.pkl", "wb"))
+    #uncollapsed_dim = len(universe_reco_hists[0])
 
-    uncollapsed_dim = len(universe_reco_hists[0])
-
-
-    if collapse_2d:
+    if collapse_type == "2D":
 
         print("collapsing to 2D, muon momentum and muon angle")
 
@@ -890,7 +891,7 @@ def get_MA_trio_cov_mat_pred(
         universe_reco_hists = collapsed_universe_reco_hists
         unisim_reco_hist_dic = collapsed_unisim_reco_hist_dic
 
-    elif collapse_1d:
+    elif collapse_type == "1D":
 
         print("collapsing to 1D, muon momentum")
 
@@ -1041,7 +1042,7 @@ def get_MA_trio_cov_mat_pred(
 
     print("loading other systematic uncertainties from 3D XS extraction files")
 
-    cov_stat = f_wiener["hcov_stat"].to_numpy()[0]
+    #cov_stat = f_wiener["hcov_stat"].to_numpy()[0]
     cov_mcstat = f_wiener["hcov_mcstat"].to_numpy()[0]
     cov_add = f_wiener["hcov_add"].to_numpy()[0]
     cov_det = f_wiener["hcov_det"].to_numpy()[0]
@@ -1049,7 +1050,7 @@ def get_MA_trio_cov_mat_pred(
     #cov_xs = f_wiener["hcov_xs"].to_numpy()[0]
     #cov_tot = f_wiener["hcov_tot"].to_numpy()[0]
 
-    if collapse_2d:
+    if collapse_type == "2D":
 
         collapsing_matrix = [[1] + [0 for _ in range(16*9-1)]]
         for i in range(1152):
@@ -1071,7 +1072,7 @@ def get_MA_trio_cov_mat_pred(
         cov_flux_MA = np.append(np.append(cov_flux, np.zeros((3, collapsed_dim)), axis=0), np.zeros((collapsed_dim+3,3)), axis=1)
 
 
-    elif collapse_1d:
+    elif collapse_type == "1D":
 
         collapsing_matrix = [[1] + [0 for _ in range(16-1)]]
         for i in range(1152):
@@ -1179,9 +1180,9 @@ def get_MA_trio_cov_mat_pred(
 
     print(f"Saving results to cache file: {cache_key}")
     with open("trio_caches/" + cache_key, 'wb') as f:
-        pickle.dump((total_cov_MA, tot_pred_MA, data), f)
+        pickle.dump((total_cov_MA, tot_pred_MA, data, multisim_xs_MA_cov, universe_reco_MAs), f)
         
-    return total_cov_MA, tot_pred_MA, data
+    return total_cov_MA, tot_pred_MA, data, multisim_xs_MA_cov, universe_reco_MAs
 
 
 def extract_trio(cov_MA, pred_MA, data, inv_cov_constraining=None):
