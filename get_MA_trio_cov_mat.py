@@ -1082,6 +1082,7 @@ def get_MA_trio_cov_mat_pred(
         , axis=1)
 
         total_cov_MA += extra_normalization_cov * percent_normalization_error**2 / (100. * 100.)
+        multisim_xs_MA_cov += extra_normalization_cov * percent_normalization_error**2 / (100. * 100.)
 
     elif shape_type == "matrix_breakdown":
 
