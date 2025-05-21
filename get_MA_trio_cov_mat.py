@@ -1128,6 +1128,10 @@ def get_MA_trio_cov_mat_pred(
 
         total_cov_MA = M_s + xs_MA_cov
 
+    # including data and MC stat uncertainties in the multi-sim covariance matrix, 
+    # since this will be used for fake data generations and constraints and chi2 tests comparing with data later
+    multisim_xs_MA_cov += cov_stat_MA + cov_mcstat_MA
+
     print(f"Saving results to cache file: {cache_key}")
     with open("trio_caches/" + cache_key, 'wb') as f:
         pickle.dump((total_cov_MA, tot_pred_MA, data, multisim_xs_MA_cov, universe_reco_MAs), f)
