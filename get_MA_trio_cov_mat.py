@@ -498,7 +498,7 @@ def get_MA_trio_cov_mat_pred(
     if not no_cache:
         try:
             print(f"Attempting to load from cache file: {cache_key}")
-            with open("trio_caches/" + cache_key, 'rb') as f:
+            with open("pickle_files/" + cache_key, 'rb') as f:
                 total_cov_MA, tot_pred_MA, data, multisim_xs_MA_cov, universe_reco_MAs = pickle.load(f)
                 print("Successfully loaded from cache")
                 return total_cov_MA, tot_pred_MA, data, multisim_xs_MA_cov, universe_reco_MAs
@@ -1087,20 +1087,36 @@ def get_MA_trio_cov_mat_pred(
     multisim_xs_MA_cov += cov_stat_MA + cov_mcstat_MA
 
     print(f"Saving results to cache file: {cache_key}")
-    with open("trio_caches/" + cache_key, 'wb') as f:
+    with open("pickle_files/" + cache_key, 'wb') as f:
         pickle.dump((total_cov_MA, tot_pred_MA, data, multisim_xs_MA_cov, universe_reco_MAs), f)
         
     return total_cov_MA, tot_pred_MA, data, multisim_xs_MA_cov, universe_reco_MAs
 
 
-def extract_trio(cov_MA, pred_MA, data, inv_cov_constraining=None):
+def extract_trio(cov_MA, pred_MA, data, inv_cov_constraining=None, min_pred=0.001):
 
-    # data can be a array of data points, or an array of arrays for multiple data points
+    if min_pred != 0:
+        assert inv_cov_constraining is None, "inv_cov_constraining can't be provided if min_pred is not 0"
+
+    pred_MA = np.array(pred_MA)
+    data = np.array(data)
+    cov_MA = np.array(cov_MA)
+
+    valid_indices = np.where(pred_MA[:-3] >= min_pred)[0]
+    valid_indices_including_trio = valid_indices.copy()
+    valid_indices_including_trio = np.append(valid_indices_including_trio, len(pred_MA) - 3)
+    valid_indices_including_trio = np.append(valid_indices_including_trio, len(pred_MA) - 2)
+    valid_indices_including_trio = np.append(valid_indices_including_trio, len(pred_MA) - 1)
+
+    pred_MA = pred_MA[valid_indices_including_trio]
+    data = data[valid_indices]
+    cov_MA = cov_MA[np.ix_(valid_indices_including_trio, valid_indices_including_trio)]
 
     trio_prior = pred_MA[-3:] # M_A, NormCCMEC, Lambda
-
     cov_cross = cov_MA[-3:, :-3]
     cov_prior = cov_MA[-3:, -3:]
+
+    # data can be a array of data points, or an array of arrays for multiple data points
 
     if inv_cov_constraining is None:
         cov_constraining = cov_MA[:-3, :-3]
@@ -1112,6 +1128,8 @@ def extract_trio(cov_MA, pred_MA, data, inv_cov_constraining=None):
         for data_i in data:
             ret.append(extract_trio(cov_MA, pred_MA, data_i, inv_cov_constraining=inv_cov_constraining))
         return ret
+    
+    print(cov_cross.shape, inv_cov_constraining.shape, np.array(data).shape)
 
     constrained_trio = pred_MA[-3:] + np.linalg.multi_dot(
         [cov_cross, inv_cov_constraining, np.array(data) - np.array(pred_MA[:-3])]
