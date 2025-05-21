@@ -450,8 +450,22 @@ def get_prediction_cv_and_variations_dataframes():
     return all_df, all_vars_df, num_unisim_variations_dic, pots
 
 
-##### Function to get the covariance matrix and prediction for a certain type of data or fake data extraction #####
+def collapse_4D_to_2D(arr):    
+    # Collapsing everything to muon momentum and muon angle
+    # Combining FC/PC and Enu bins
+    collapsed_arr = np.zeros(16*9)
+    for i in range(1152):
+        collapsed_arr[i%(16*9)] += arr[i]
+    return collapsed_arr
 
+def collapse_4D_to_1D(arr):
+    collapsed_arr = np.zeros(16)
+    for i in range(1152):
+        collapsed_arr[i%16] += arr[i]
+    return collapsed_arr
+
+
+##### Function to get the covariance matrix and prediction for a certain type of data or fake data extraction #####
 
 def get_MA_trio_cov_mat_pred(
         
@@ -801,88 +815,28 @@ def get_MA_trio_cov_mat_pred(
 
     if collapse_type == "2D":
 
-        print("collapsing to 2D, muon momentum and muon angle")
+        print("collapsing to 2D, muon momentum and theta")
 
-        # collapsing everything to muon momentum and muon angle
-        # Combining FC/PC and Enu bins
+        reco_hist = collapse_4D_to_2D(reco_hist)
+        tot_pred = collapse_4D_to_2D(tot_pred)
+        data = collapse_4D_to_2D(data)
 
-        collapsed_reco_hist = np.zeros(16*9)
-        collapsed_tot_pred = np.zeros(16*9)
-        collapsed_data = np.zeros(16*9)
-
-        for i in range(1152):
-            collapsed_reco_hist[i%(16*9)] += reco_hist[i]
-            collapsed_tot_pred[i%(16*9)] += tot_pred[i]
-            collapsed_data[i%(16*9)] += data[i]
-
-        collapsed_universe_reco_hists = []
-        for uni_i in range(600):
-            vals = np.zeros(16*9)
-            for i in range(1152):
-                vals[i%(16*9)] += universe_reco_hists[uni_i][i]
-            collapsed_universe_reco_hists.append(vals)
-
-        collapsed_unisim_reco_hist_dic = {}
-        for k, v in unisim_reco_hist_dic.items():
-            if k not in collapsed_unisim_reco_hist_dic:
-                collapsed_unisim_reco_hist_dic[k] = []
-            for uni_i in range(len(v)):
-                vals = np.zeros(16*9)
-                for i in range(1152):
-                    vals[i%(16*9)] += v[uni_i][i]
-                collapsed_unisim_reco_hist_dic[k].append(vals)
-
-
-        reco_hist = collapsed_reco_hist
-        tot_pred = collapsed_tot_pred
-        data = collapsed_data
-
-        universe_reco_hists = collapsed_universe_reco_hists
-        unisim_reco_hist_dic = collapsed_unisim_reco_hist_dic
+        universe_reco_hists = [collapse_4D_to_2D(_) for _ in universe_reco_hists]
+        unisim_reco_hist_dic = {k: [collapse_4D_to_2D(_) for _ in v] for k, v in unisim_reco_hist_dic.items()}
 
     elif collapse_type == "1D":
 
         print("collapsing to 1D, muon momentum")
 
-        # collapsing everything to muon momentum
-        # Combining FC/PC, Enu, and theta bins
+        reco_hist = collapse_4D_to_1D(reco_hist)
+        tot_pred = collapse_4D_to_1D(tot_pred)
+        data = collapse_4D_to_1D(data)
 
-        collapsed_reco_hist = np.zeros(16)
-        collapsed_tot_pred = np.zeros(16)
-        collapsed_data = np.zeros(16)
-
-        for i in range(1152):
-            collapsed_reco_hist[i%16] += reco_hist[i]
-            collapsed_tot_pred[i%16] += tot_pred[i]
-            collapsed_data[i%16] += data[i]
-
-        collapsed_universe_reco_hists = []
-        for uni_i in range(600):
-            vals = np.zeros(16)
-            for i in range(1152):
-                vals[i%16] += universe_reco_hists[uni_i][i]
-            collapsed_universe_reco_hists.append(vals)
-
-        collapsed_unisim_reco_hist_dic = {}
-        for k, v in unisim_reco_hist_dic.items():
-            if k not in collapsed_unisim_reco_hist_dic:
-                collapsed_unisim_reco_hist_dic[k] = []
-            for uni_i in range(len(v)):
-                vals = np.zeros(16)
-                for i in range(1152):
-                    vals[i%16] += v[uni_i][i]
-                collapsed_unisim_reco_hist_dic[k].append(vals)
-
-        reco_hist = collapsed_reco_hist
-        tot_pred = collapsed_tot_pred
-        data = collapsed_data
-
-        universe_reco_hists = collapsed_universe_reco_hists
-        unisim_reco_hist_dic = collapsed_unisim_reco_hist_dic
+        universe_reco_hists = [collapse_4D_to_1D(_) for _ in universe_reco_hists]
+        unisim_reco_hist_dic = {k: [collapse_4D_to_1D(_) for _ in v] for k, v in unisim_reco_hist_dic.items()}
 
     collapsed_dim = len(universe_reco_hists[0])
     collapsed_plus_dim = collapsed_dim + 3
-
 
     print("adding M_A, MEC, and Lambda to CV and variation histograms")
 
