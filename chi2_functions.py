@@ -27,10 +27,10 @@ def get_poisson_significance(measured, expected):
     print(f"p value: {p_value}")
     print(f"significance: {sigma} sigma")
 
-
 def get_p_value_from_significance(sigma):
     p_value = erfc(sigma / np.sqrt(2.))
     return p_value
+
 
 def get_chi2(cov, data, pred, min_pred=0):
 
@@ -46,7 +46,6 @@ def get_chi2(cov, data, pred, min_pred=0):
     
     diff = data_cut - pred_cut
     return np.linalg.multi_dot([diff, np.linalg.inv(cov_cut), diff])
-
 
 def chi2_decomposition(cov, data, pred, min_pred=0):
 

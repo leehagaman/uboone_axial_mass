@@ -482,6 +482,9 @@ def get_MA_trio_cov_mat_pred(
         collapse_type = "4D", # other options are "2D" and "1D"
 
         no_cache = False,
+
+        replace_NormCCMEC_with_MaCCRES = False,
+
         ):
     
     assert not data_type == "real", "Not allowed to unblind yet!"
@@ -493,6 +496,8 @@ def get_MA_trio_cov_mat_pred(
         cache_key += f"_{shape_type}"
     if collapse_type != "4D":
         cache_key += f"_{collapse_type}"
+    if replace_NormCCMEC_with_MaCCRES:
+        cache_key += f"_usingMaCCRES"
     cache_key += ".pkl"
 
     if not no_cache:
@@ -844,15 +849,22 @@ def get_MA_trio_cov_mat_pred(
     MEC_values = np.genfromtxt("knob_values/NormCCMEC_univs_v2.txt")
     lambda_values = [np.sum(universe_reco_hists[i]) / np.sum(reco_hist) for i in range(600)]
 
+    MaCCRES_values = np.genfromtxt("knob_values/MaCCRES_univs.txt")
+
+    if replace_NormCCMEC_with_MaCCRES:
+        other_knob_values = MaCCRES_values
+    else:
+        other_knob_values = MEC_values
+
     tot_pred_MA = list(tot_pred) + [1.10, 1.66, 1]
 
     universe_reco_MAs = []
     if shape_type == "rate+shape" or shape_type == "+100":
         for i in range(600):
-            universe_reco_MAs.append(np.array(list(universe_reco_hists[i]) + [MA_values[i], MEC_values[i], lambda_values[i]]))
+            universe_reco_MAs.append(np.array(list(universe_reco_hists[i]) + [MA_values[i], other_knob_values[i], lambda_values[i]]))
     elif shape_type == "matrix_breakdown":
         for uni_i in range(600):
-            universe_reco_MAs.append(np.array(list(universe_reco_hists[uni_i] / np.sum(universe_reco_hists[uni_i])) + [MA_values[uni_i], MEC_values[i], lambda_values[uni_i]]))
+            universe_reco_MAs.append(np.array(list(universe_reco_hists[uni_i] / np.sum(universe_reco_hists[uni_i])) + [MA_values[uni_i], other_knob_values[i], lambda_values[uni_i]]))
         not_normed_tot_pred_MA = tot_pred_MA.copy()
         tot_pred_MA = list(tot_pred_MA[:-3] / np.sum(tot_pred_MA[:-3])) + [1.10, 1.66, 1]
         data = data / np.sum(data)
