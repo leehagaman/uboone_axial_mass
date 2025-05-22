@@ -856,7 +856,10 @@ def get_MA_trio_cov_mat_pred(
     else:
         other_knob_values = MEC_values
 
-    tot_pred_MA = list(tot_pred) + [1.10, 1.66, 1]
+    if replace_NormCCMEC_with_MaCCRES:
+        tot_pred_MA = list(tot_pred) + [1.10, 1.065047, 1]
+    else:
+        tot_pred_MA = list(tot_pred) + [1.10, 1.66, 1]
 
     universe_reco_MAs = []
     if shape_type == "rate+shape" or shape_type == "+100":
@@ -1141,8 +1144,6 @@ def extract_trio(cov_MA, pred_MA, data, inv_cov_constraining=None, min_pred=0.00
             ret.append(extract_trio(cov_MA, pred_MA, data_i, inv_cov_constraining=inv_cov_constraining))
         return ret
     
-    print(cov_cross.shape, inv_cov_constraining.shape, np.array(data).shape)
-
     constrained_trio = pred_MA[-3:] + np.linalg.multi_dot(
         [cov_cross, inv_cov_constraining, np.array(data) - np.array(pred_MA[:-3])]
     )
