@@ -1108,7 +1108,7 @@ def get_MA_trio_cov_mat_pred(
     return total_cov_MA, tot_pred_MA, data, multisim_xs_MA_cov, universe_reco_MAs
 
 
-def extract_trio(cov_MA, pred_MA, data, inv_cov_constraining=None, min_pred=0.001):
+def extract_trio(cov_MA, pred_MA, data, inv_cov_constraining=None, min_pred=0.001, debug=False):
 
     if min_pred != 0:
         assert inv_cov_constraining is None, "inv_cov_constraining can't be provided if min_pred is not 0"
@@ -1157,6 +1157,11 @@ def extract_trio(cov_MA, pred_MA, data, inv_cov_constraining=None, min_pred=0.00
     dp = np.sqrt(cov_prior[0][0])
     prior_removed_MA = (dp * dp * x - dx * dx * p) / (dp * dp - dx * dx)
     prior_removed_MA_sigma = (dp * dx) / np.sqrt(dp * dp - dx * dx)
+
+    if debug:
+        print(f"diff: {np.array(data) - np.array(pred_MA[:-3])}")
+        print(f"trio_prior: {trio_prior}")
+        print(f"constrained_trio: {constrained_trio}")
 
     return constrained_trio, constrained_trio_cov, prior_removed_MA, prior_removed_MA_sigma
 
